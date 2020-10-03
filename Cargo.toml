@@ -1,0 +1,16 @@
+[package]
+name = "ruche"
+version = "0.1.0"
+authors = ["wzg547228197 <wzg547228197@gmail.com>"]
+description = "a simple key/value storage code in rust."
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+failure = "0.1.8"
+structopt = "0.3.17"
+log = "0.4.11"
+env_logger = "0.7.1"
+serde = {version = "1.0.115", features = ["derive"]}
+serde_json = "1.0.57"
