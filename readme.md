@@ -1,2 +1,2 @@
 # Ruche
-`Ruche` is a simple key/value storage code in rust.
+`Ruche` is a simple key/value storage written in rust.
