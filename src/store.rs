@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use crate::RucheResult;
 
 /// The `RucheStore` stores string key/value pairs.
+#[derive(Clone)]
 pub struct RucheStore {
     database: HashMap<String, String>
 }
