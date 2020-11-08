@@ -4,8 +4,7 @@ use std::io;
 use std::io::{BufRead, Write};
 use std::process::exit;
 use structopt::StructOpt;
-use serde::Deserialize;
-use std::net::{SocketAddr, TcpStream};
+use std::net::SocketAddr;
 use ruche::RucheClient;
 
 const DEFAULT_CONNECTING_ADDRESS: &str = "127.0.0.1:8030";
@@ -23,35 +22,19 @@ struct Opt {
     addr: SocketAddr
 }
 
-// #[derive(StructOpt, Debug)]
-// enum Command {
-//     #[structopt(name = "get", about = "Get the string value of a given string key")]
-//     Get {
-//         #[structopt(name = "KEY", help = "A string key")]
-//         key: String,
-//     },
-//     // Get { key: String },
-//     Set { key: String, value: String },
-//     Remove { key: String },
-// }
-
 fn main() {
     env_logger::init();
     info!("ruche-cli {}", env!("CARGO_PKG_VERSION"));
     let opt = Opt::from_args();
     info!("ruche-cli connecting {}...", opt.addr);
-    io::stdout().flush().unwrap();
     let client = RucheClient::new(opt.addr);
     if let Err(e) = client {
         error!("connection failed {}", e);
-        io::stdout().flush().unwrap();
         exit(1);
     }
 
     let mut client = client.unwrap();
     info!("ruche-cli connected!");
-    io::stdout().flush().unwrap();
-
     print!("ruche-cli > ");
     io::stdout().flush().unwrap();
 
@@ -70,12 +53,12 @@ fn main() {
             &"set" => {
                 let &key = vec.get(1).unwrap();
                 let &value = vec.get(2).unwrap();
-                let res = client.set(key.to_owned(), value.to_owned());
+                let _res = client.set(key.to_owned(), value.to_owned());
                 println!("OK");
             }
             &"rm" => {
                 let &key = vec.get(1).unwrap();
-                let res = client.remove(key.to_owned());
+                let _res = client.remove(key.to_owned());
                 println!("OK");
             }
             _ => {

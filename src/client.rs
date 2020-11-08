@@ -27,7 +27,7 @@ impl RucheClient {
 
     /// Get the value in the storage.
     pub fn get(&mut self, key: String) -> RucheResult<Option<String>> {
-        serde_json::to_writer(&mut self.writer, &Request::Get { key });
+        serde_json::to_writer(&mut self.writer, &Request::Get { key })?;
         self.writer.flush()?;
         let resp = GetResponse::deserialize(&mut self.reader)?;
         match resp {
@@ -38,7 +38,7 @@ impl RucheClient {
 
     /// Set the value in the storage.
     pub fn set(&mut self, key: String, value: String) -> RucheResult<()> {
-        serde_json::to_writer(&mut self.writer, &Request::Set { key, value });
+        serde_json::to_writer(&mut self.writer, &Request::Set { key, value })?;
         self.writer.flush()?;
         let resp = SetResponse::deserialize(&mut self.reader)?;
         match resp {
@@ -49,7 +49,7 @@ impl RucheClient {
 
     /// Remove the value in the storage.
     pub fn remove(&mut self, key: String) -> RucheResult<()> {
-        serde_json::to_writer(&mut self.writer, &Request::Remove { key });
+        serde_json::to_writer(&mut self.writer, &Request::Remove { key })?;
         self.writer.flush()?;
         let resp = RemoveResponse::deserialize(&mut self.reader)?;
         match resp {
