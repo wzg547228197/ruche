@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use crate::RucheResult;
+use std::sync::{Arc, Mutex};
 
 /// The `RucheStore` stores string key/value pairs.
+#[derive(Clone)]
 pub struct RucheStore {
-    database: HashMap<String, String>
+    database: Arc<Mutex<HashMap<String, String>>>
 }
 
 /// The default implement for `RucheStore`.
@@ -21,25 +23,28 @@ impl RucheStore {
     /// Create a `RucheStore`
     pub fn new() -> Self {
         RucheStore {
-            database: HashMap::new()
+            database: Arc::new(Mutex::new(HashMap::new()))
         }
     }
 
     /// Get the value of the given key.
     pub fn get(&mut self, key: String) -> RucheResult<Option<String>> {
-        let value = self.database.get(&key);
+        let database = self.database.lock().unwrap();
+        let value = (*database).get(&key);
         Ok(value.cloned())
     }
 
     /// Set the value with the given key.
     pub fn set(&mut self, key: String, value: String) -> RucheResult<()> {
-        self.database.insert(key, value);
+        let mut database = self.database.lock().unwrap();
+        (*database).insert(key, value);
         Ok(())
     }
 
     /// Remove the value with the given key.
     pub fn remove(&mut self, key: String) -> RucheResult<()> {
-        self.database.remove(&key);
+        let mut database = self.database.lock().unwrap();
+        (*database).remove(&key);
         Ok(())
     }
 }
