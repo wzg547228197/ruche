@@ -1,13 +1,7 @@
 use crate::{RucheStore, RucheResult};
-use std::net::{TcpStream, ToSocketAddrs, TcpListener, SocketAddr};
-use std::io::{BufReader, BufWriter, Write};
-use crate::request::Request;
-use serde_json::Deserializer;
-use crate::response::{GetResponse, SetResponse, RemoveResponse};
-use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
-use std::borrow::BorrowMut;
-use std::thread;
+use crate::common::{Request, Response};
+use tokio::prelude::*;
+use tokio::net::{ToSocketAddrs, TcpListener, TcpStream};
 
 /// The server of a key value store.
 #[derive(Clone)]
@@ -24,69 +18,73 @@ impl RucheServer {
     }
 
     /// Run the server listening on the given address
-    pub fn run<A: ToSocketAddrs>(mut self, addr: A) -> RucheResult<()> {
-        let listener = TcpListener::bind(addr)?;
-        for stream in listener.incoming() {
+    pub async fn run<A: ToSocketAddrs>(self, addr: A) -> RucheResult<()> {
+        let listener = TcpListener::bind(addr).await?;
+        loop {
+            debug!("waiting for connection");
+            let (mut stream, _) = listener.accept().await?;
             let mut server_clone = self.clone();
-            thread::spawn(move || {
-                match stream {
-                    Ok(stream) => {
-                        serve(&mut server_clone, stream);
-                    },
-                    Err(e) => error!("Connection failed: {}", e)
-                }
+            tokio::spawn(async move {
+                serve(&mut server_clone, &mut stream).await.unwrap();
             });
         }
-        Ok(())
     }
 }
 
-fn serve(server: &mut RucheServer, stream: TcpStream) -> RucheResult<()> {
-    let socket_addr = stream.peer_addr()?;
-    let reader = BufReader::new(&stream);
-    let mut writer = BufWriter::new(&stream);
-    let req_stream = Deserializer::from_reader(reader).into_iter::<Request>();
-
-    for req in req_stream {
-        let req = req?;
-        debug!("Receive request from {}: {:?}", socket_addr, req);
-        match req {
-            Request::Get { key } => {
-                let res = match server.store.get(key) {
-                    Ok(value) => GetResponse::Ok(value),
-                    Err(e) => GetResponse::Err(format!("{}", e))
-                };
-
-                send_resp(&mut writer, socket_addr, &res)?
+async fn serve(server: &mut RucheServer, stream: &mut TcpStream) -> RucheResult<()> {
+    let remote_ip = stream.peer_addr().unwrap().ip().to_string();
+    let remote_port = stream.peer_addr().unwrap().port().to_string();
+    debug!("connection from remote: {}:{}", remote_ip, remote_port);
+    loop {
+        debug!("waiting for data");
+        stream.readable().await?;
+        let mut msg = vec![0; 1024];
+        match stream.read(&mut msg).await {
+            Ok(0) => {
+                // Return value of `Ok(0)` signifies that the remote has closed.
+                debug!("connection closed: {}:{}", remote_ip, remote_port);
+                break;
             },
-            Request::Set { key, value } => {
-                let res = match server.store.set(key, value) {
-                    Ok(_) => SetResponse::Ok(()),
-                    Err(e) => SetResponse::Err(format!("{}", e))
+            Ok(n) => {
+                let s: &str = std::str::from_utf8(&msg[..n]).unwrap();
+                let req: Request = serde_json::from_str(s).unwrap();
+                debug!("Got Request: {:?}", req);
+
+                let response = match req {
+                    Request::Get { key } => {
+                        match server.store.get(key) {
+                            Ok(value) => Response::Get(value),
+                            Err(e) => Response::Err(format!("{}", e))
+                        }
+                    },
+                    Request::Set { key, value } => {
+                        match server.store.set(key, value) {
+                            Ok(_) => Response::Set,
+                            Err(e) => Response::Err(format!("{}", e))
+                        }
+                    },
+                    Request::Remove { key } => {
+                        match server.store.remove(key) {
+                            Ok(_) => Response::Remove,
+                            Err(e) => Response::Err(format!("{}", e))
+                        }
+                    }
                 };
 
-                send_resp(&mut writer, socket_addr, &res)?
+                let res_str = serde_json::to_string(&response).unwrap();
+                stream.write(res_str.as_bytes()).await?;
             },
-            Request::Remove { key } => {
-                let res = match server.store.remove(key) {
-                    Ok(_) => RemoveResponse::Ok(()),
-                    Err(e) => RemoveResponse::Err(format!("{}", e))
-                };
-
-                send_resp(&mut writer, socket_addr, &res)?
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                // According to tokio document.
+                // This may still fail with `WouldBlock` if the readiness event is a false positive.
+                // We just skip this situation.
+                error!("{}", e.to_string());
+            },
+            Err(e) => {
+                error!("{}", e.to_string());
             }
         }
     }
-
-    Ok(())
-}
-
-fn send_resp<'a, T: Serialize + Deserialize<'a> + Debug>(writer: &mut BufWriter<&TcpStream>,
-                                                         addr: SocketAddr,
-                                                         msg: &T) -> RucheResult<()> {
-    serde_json::to_writer(writer.borrow_mut(), msg)?;
-    writer.flush()?;
-    debug!("Response send to {}: {:?}", addr, msg);
 
     Ok(())
 }

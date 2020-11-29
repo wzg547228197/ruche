@@ -6,8 +6,7 @@
 mod client;
 mod error;
 mod store;
-mod request;
-mod response;
+mod common;
 mod server;
 
 pub use error::{RucheError, RucheResult};

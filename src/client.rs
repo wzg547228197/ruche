@@ -3,8 +3,7 @@ use serde_json::de::IoRead;
 use std::io::{BufReader, BufWriter, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use crate::{RucheResult, RucheError};
-use crate::request::Request;
-use crate::response::{GetResponse, SetResponse, RemoveResponse};
+use crate::common::{Request, Response};
 use serde::Deserialize;
 
 /// Client side for ruche command line.
@@ -29,10 +28,11 @@ impl RucheClient {
     pub fn get(&mut self, key: String) -> RucheResult<Option<String>> {
         serde_json::to_writer(&mut self.writer, &Request::Get { key })?;
         self.writer.flush()?;
-        let resp = GetResponse::deserialize(&mut self.reader)?;
+        let resp = Response::deserialize(&mut self.reader)?;
         match resp {
-            GetResponse::Ok(value) => Ok(value),
-            GetResponse::Err(e) => Err(RucheError::StringError(e))
+            Response::Get(value) => Ok(value),
+            Response::Err(e) => Err(RucheError::StringError(e)),
+            _ => Err(RucheError::StringError("Invalid response".to_owned()))
         }
     }
 
@@ -40,10 +40,11 @@ impl RucheClient {
     pub fn set(&mut self, key: String, value: String) -> RucheResult<()> {
         serde_json::to_writer(&mut self.writer, &Request::Set { key, value })?;
         self.writer.flush()?;
-        let resp = SetResponse::deserialize(&mut self.reader)?;
+        let resp = Response::deserialize(&mut self.reader)?;
         match resp {
-            SetResponse::Ok(value) => Ok(value),
-            SetResponse::Err(e) => Err(RucheError::StringError(e))
+            Response::Set => Ok(()),
+            Response::Err(e) => Err(RucheError::StringError(e)),
+            _ => Err(RucheError::StringError("Invalid response".to_owned()))
         }
     }
 
@@ -51,10 +52,11 @@ impl RucheClient {
     pub fn remove(&mut self, key: String) -> RucheResult<()> {
         serde_json::to_writer(&mut self.writer, &Request::Remove { key })?;
         self.writer.flush()?;
-        let resp = RemoveResponse::deserialize(&mut self.reader)?;
+        let resp = Response::deserialize(&mut self.reader)?;
         match resp {
-            RemoveResponse::Ok(value) => Ok(value),
-            RemoveResponse::Err(e) => Err(RucheError::StringError(e))
+            Response::Remove => Ok(()),
+            Response::Err(e) => Err(RucheError::StringError(e)),
+            _ => Err(RucheError::StringError("Invalid response".to_owned()))
         }
     }
 }

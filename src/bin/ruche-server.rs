@@ -20,20 +20,21 @@ struct Opt {
     addr: SocketAddr
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     env_logger::init();
     let opt = Opt::from_args();
-    let result = run(opt);
+    let result = run(opt).await;
     if let Err(e) = result {
         error!("{}!", e);
         exit(1);
     }
 }
 
-fn run(opt: Opt) -> RucheResult<()> {
+async fn run(opt: Opt) -> RucheResult<()> {
     let server: RucheServer = RucheServer::new();
     info!("ruche-server {}", env!("CARGO_PKG_VERSION"));
     info!("Listening on {}", opt.addr);
 
-    server.run(opt.addr)
+    server.run(opt.addr).await
 }
