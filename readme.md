@@ -1,5 +1,5 @@
 # Ruche
-`Ruche` is a simple key/value storage written in rust.
+`Ruche` is a key/value storage written in rust.
 This project is now for personal study and currently in develop.
 If you are interested in this project. Welcome to contribute.
 
@@ -34,4 +34,4 @@ a
 ## Progress
 * Use epoll(Tokio) to handle network connection. ✅
 * Support transactional.
-* Support multiple command and data structure.
+* Support multiple command type and data structure.
